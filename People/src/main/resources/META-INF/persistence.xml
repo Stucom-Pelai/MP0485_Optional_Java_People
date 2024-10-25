@@ -2,7 +2,7 @@
 <persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.1">
     <persistence-unit name="miUnidadDePersistencia">
         <provider>com.objectdb.jpa.Provider</provider>
-        <class>Model.Class.Person</class>
+        <class>model.entity.Person</class>
         <properties>
             <property name="javax.persistence.jdbc.url" value="objectdb://localhost:6136/people.odb"/>
             <property name="javax.persistence.jdbc.user" value="admin"/>
