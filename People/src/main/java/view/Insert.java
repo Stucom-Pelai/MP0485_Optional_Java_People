@@ -4,6 +4,7 @@ import static utils.DataValidation.calculateNifLetter;
 import static utils.DataValidation.isLetter;
 import static utils.DataValidation.isNumber;
 
+import java.awt.*;
 import java.awt.dnd.DropTarget;
 import java.awt.event.KeyEvent;
 import java.time.LocalDate;
@@ -247,12 +248,40 @@ public class Insert extends javax.swing.JDialog {
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
+    private void MyForm() {
+
+        initComponents();
+
+        addPlaceholder(nif,"Enter NIF number, letter is calculated (e.g., 12345678)");
+        addPlaceholder(name,"Enter your full name");
+    }
+
     private void showInsert() {
         if (!name.getText().isEmpty() && !nif.isEditable()) {
             insert.setEnabled(true);
         } else {
             insert.setEnabled(false);
         }
+    }
+
+    private void addPlaceholder(JTextField textField,String placeholder) {
+        textField.setText(placeholder);
+        textField.setForeground(Color.GRAY);
+
+        textField.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent event) {
+                if(textField.getText().equals(placeholder)){
+                    textField.setText("");
+                    textField.setForeground(Color.BLACK);
+                }
+            }
+            public void focusLost(java.awt.event.FocusEvent event){
+                if(textField.getText().isEmpty()){
+                    textField.setText(placeholder);
+                    textField.setForeground(Color.GRAY);
+                }
+            }
+        });
     }
 
     private void resetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_resetActionPerformed
