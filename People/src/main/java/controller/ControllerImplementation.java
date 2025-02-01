@@ -88,169 +88,206 @@ public class ControllerImplementation implements IController, ActionListener {
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        // Depending on the data storage selected, the 
-        // Controller generates a DAO object to make CRUD functions.
-        if (e.getSource() == (dSS.getAccept()[0])) {
-            String daoSelected = ((javax.swing.JCheckBox) (dSS.getAccept()[1])).getText();
-            dSS.dispose();
-            File folderPath, folderPhotos, dataFile;
-            switch (daoSelected) {
-                case "ArrayList":
-                    dao = new DAOArrayList();
-                    break;
-                case "HashMap":
-                    dao = new DAOHashMap();
-                    break;
-                case "File":
-                    folderPath = new File(Routes.FILE.getFolderPath());
-                    folderPhotos = new File(Routes.FILE.getFolderPhotos());
-                    dataFile = new File(Routes.FILE.getDataFile());
-                    folderPath.mkdir();
-                    folderPhotos.mkdir();
-                    if (!dataFile.exists()) {
-                        try {
-                            dataFile.createNewFile();
-                        } catch (IOException ex) {
-                            JOptionPane.showMessageDialog(dSS, "File structure not created. Closing application.", "File - People v1.1.0", JOptionPane.ERROR_MESSAGE);
-                            System.exit(0);
-                        }
-                    }
-                    dao = new DAOFile();
-                    break;
-                case "File (Serialization)":
-                    folderPath = new File(Routes.FILES.getFolderPath());
-                    dataFile = new File(Routes.FILES.getDataFile());
-                    folderPath.mkdir();
-                    if (!dataFile.exists()) {
-                        try {
-                            dataFile.createNewFile();
-                        } catch (IOException ex) {
-                            JOptionPane.showMessageDialog(dSS, "File structure not created. Closing application.", "FileSer - People v1.1.0", JOptionPane.ERROR_MESSAGE);
-                            System.exit(0);
-                        }
-                    }
-                    dao = new DAOFileSerializable();
-                    break;
-                case "SQL - Database":
-                    folderPath = new File(Routes.DB.getFolderPath());
-                    folderPhotos = new File(Routes.DB.getFolderPhotos());
-                    folderPath.mkdir();
-                    folderPhotos.mkdir();
-                    try {
-                        Connection conn;
-                        conn = DriverManager.getConnection(Routes.DB.getDbServerAddress() + Routes.DB.getDbServerComOpt(), Routes.DB.getDbServerUser(), Routes.DB.getDbServerPassword());
-                        if (conn != null) {
-                            String instruction = "create database if not exists " + Routes.DB.getDbServerDB() + ";";
-                            Statement stmt;
-                            stmt = conn.createStatement();
-                            stmt.executeUpdate(instruction);
-                            stmt.close();
-                            String query = "create table if not exists " + Routes.DB.getDbServerDB() + "." + Routes.DB.getDbServerTABLE() + "("
-                                    + "nif varchar(9) primary key not null, "
-                                    + "name varchar(50), "
-                                    + "dateOfBirth DATE, "
-                                    + "photo varchar(200) );";
-                            stmt = conn.createStatement();
-                            stmt.executeUpdate(query);
-                            stmt.close();
-                            conn.close();
-                        }
-                    } catch (SQLException ex) {
-                        JOptionPane.showMessageDialog(dSS, "SQL-DDBB structure not created. Closing application.", "SQL_DDBB - People v1.1.0", JOptionPane.ERROR_MESSAGE);
-                        System.exit(0);
-                    }
-                    dao = new DAOSQL();
-                    break;
-                case "JPA - Database":
-                    try {
-                        EntityManagerFactory emf = Persistence.createEntityManagerFactory(Routes.DBO.getDbServerAddress());
-                        EntityManager em = emf.createEntityManager();
-                        em.close();
-                        emf.close();
-                    } catch (PersistenceException ex) {
-                        JOptionPane.showMessageDialog(dSS, "JPA_DDBB not created. Closing application.", "JPA_DDBB - People v1.1.0", JOptionPane.ERROR_MESSAGE);
-                        System.exit(0);
-                    }
-                    dao = new DAOJPA();
-                    break;
+        if (e.getSource() == dSS.getAccept()[0]) {
+            handleDataStorageSelection();
+        } else if (e.getSource() == menu.getInsert()) {
+            handleInsertAction();
+        } else if (insert != null && e.getSource() == insert.getInsert()) {
+            handleInsertPerson();
+        } else if (e.getSource() == menu.getRead()) {
+            handleReadAction();
+        } else if (read != null && e.getSource() == read.getRead()) {
+            handleReadPerson();
+        } else if (e.getSource() == menu.getDelete()) {
+            handleDeleteAction();
+        } else if (delete != null && e.getSource() == delete.getDelete()) {
+            handleDeletePerson();
+        } else if (e.getSource() == menu.getUpdate()) {
+            handleUpdateAction();
+        } else if (update != null && e.getSource() == update.getRead()) {
+            handleReadForUpdate();
+        } else if (update != null && e.getSource() == update.getUpdate()) {
+            handleUpdatePerson();
+        } else if (e.getSource() == menu.getReadAll()) {
+            handleReadAll();
+        } else if (e.getSource() == menu.getDeleteAll()) {
+            handleDeleteAll();
+        }
+    }
+
+    private void handleDataStorageSelection() {
+        String daoSelected = ((javax.swing.JCheckBox) (dSS.getAccept()[1])).getText();
+        dSS.dispose();
+        switch (daoSelected) {
+            case "ArrayList":
+                dao = new DAOArrayList();
+                break;
+            case "HashMap":
+                dao = new DAOHashMap();
+                break;
+            case "File":
+                setupFileStorage();
+                break;
+            case "File (Serialization)":
+                setupFileSerialization();
+                break;
+            case "SQL - Database":
+                setupSQLDatabase();
+                break;
+            case "JPA - Database":
+                setupJPADatabase();
+                break;
+        }
+        setupMenu();
+    }
+
+    private void setupFileStorage() {
+        File folderPath = new File(Routes.FILE.getFolderPath());
+        File folderPhotos = new File(Routes.FILE.getFolderPhotos());
+        File dataFile = new File(Routes.FILE.getDataFile());
+        folderPath.mkdir();
+        folderPhotos.mkdir();
+        if (!dataFile.exists()) {
+            try {
+                dataFile.createNewFile();
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(dSS, "File structure not created. Closing application.", "File - People v1.1.0", JOptionPane.ERROR_MESSAGE);
+                System.exit(0);
             }
-            //Showing the menu and schedule the events
-            menu = new Menu();
-            menu.setVisible(true);
-            menu.getInsert().addActionListener(this);
-            menu.getRead().addActionListener(this);
-            menu.getUpdate().addActionListener(this);
-            menu.getDelete().addActionListener(this);
-            menu.getReadAll().addActionListener(this);
-            menu.getDeleteAll().addActionListener(this);
-            //Events for the insert option
-        } else if (e.getSource()
-                == menu.getInsert()) {
-            insert = new Insert(menu, true);
-            insert.getInsert().addActionListener(this);
-            insert.setVisible(true);
-        } else if (insert
-                != null && e.getSource()
-                == insert.getInsert()) {
-            Person p = new Person(insert.getNam().getText(), insert.getNif().getText());
-            if (insert.getDateOfBirth().getModel().getValue() != null) {
-                p.setDateOfBirth(((GregorianCalendar) insert.getDateOfBirth().getModel().getValue()).getTime());
+        }
+        dao = new DAOFile();
+    }
+
+    private void setupFileSerialization() {
+        File folderPath = new File(Routes.FILES.getFolderPath());
+        File dataFile = new File(Routes.FILES.getDataFile());
+        folderPath.mkdir();
+        if (!dataFile.exists()) {
+            try {
+                dataFile.createNewFile();
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(dSS, "File structure not created. Closing application.", "FileSer - People v1.1.0", JOptionPane.ERROR_MESSAGE);
+                System.exit(0);
             }
-            if ((ImageIcon) insert.getPhoto().getIcon() != null) {
-                p.setPhoto((ImageIcon) insert.getPhoto().getIcon());
+        }
+        dao = new DAOFileSerializable();
+    }
+
+    private void setupSQLDatabase() {
+        try {
+            Connection conn = DriverManager.getConnection(Routes.DB.getDbServerAddress() + Routes.DB.getDbServerComOpt(),
+                    Routes.DB.getDbServerUser(), Routes.DB.getDbServerPassword());
+            if (conn != null) {
+                Statement stmt = conn.createStatement();
+                stmt.executeUpdate("create database if not exists " + Routes.DB.getDbServerDB() + ";");
+                stmt.executeUpdate("create table if not exists " + Routes.DB.getDbServerDB() + "." + Routes.DB.getDbServerTABLE() + "("
+                        + "nif varchar(9) primary key not null, "
+                        + "name varchar(50), "
+                        + "dateOfBirth DATE, "
+                        + "photo varchar(200) );");
+                stmt.close();
+                conn.close();
             }
-            insert(p);
-            insert.getReset().doClick();
-            //Events for the read option
-        } else if (e.getSource()
-                == menu.getRead()) {
-            read = new Read(menu, true);
-            read.getRead().addActionListener(this);
-            read.setVisible(true);
-        } else if (read
-                != null && e.getSource()
-                == read.getRead()) {
-            Person p = new Person(read.getNif().getText());
-            Person pNew = read(p);
-            if (pNew != null) {
-                read.getNam().setText(pNew.getName());
-                if (pNew.getDateOfBirth() != null) {
-                    Calendar calendar = Calendar.getInstance();
-                    calendar.setTime(pNew.getDateOfBirth());
-                    DateModel<Calendar> dateModel = (DateModel<Calendar>) read.getDateOfBirth().getModel();
-                    dateModel.setValue(calendar);
-                }
-                //To avoid charging former images
-                if (pNew.getPhoto() != null) {
-                    pNew.getPhoto().getImage().flush();
-                    read.getPhoto().setIcon(pNew.getPhoto());
-                }
-            } else {
-                JOptionPane.showMessageDialog(read, p.getNif() + " doesn't exist.", read.getTitle(), JOptionPane.WARNING_MESSAGE);
-                read.getReset().doClick();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(dSS, "SQL-DDBB structure not created. Closing application.", "SQL_DDBB - People v1.1.0", JOptionPane.ERROR_MESSAGE);
+            System.exit(0);
+        }
+        dao = new DAOSQL();
+    }
+
+    private void setupJPADatabase() {
+        try {
+            EntityManagerFactory emf = Persistence.createEntityManagerFactory(Routes.DBO.getDbServerAddress());
+            EntityManager em = emf.createEntityManager();
+            em.close();
+            emf.close();
+        } catch (PersistenceException ex) {
+            JOptionPane.showMessageDialog(dSS, "JPA_DDBB not created. Closing application.", "JPA_DDBB - People v1.1.0", JOptionPane.ERROR_MESSAGE);
+            System.exit(0);
+        }
+        dao = new DAOJPA();
+    }
+
+    private void setupMenu() {
+        menu = new Menu();
+        menu.setVisible(true);
+        menu.getInsert().addActionListener(this);
+        menu.getRead().addActionListener(this);
+        menu.getUpdate().addActionListener(this);
+        menu.getDelete().addActionListener(this);
+        menu.getReadAll().addActionListener(this);
+        menu.getDeleteAll().addActionListener(this);
+    }
+
+    private void handleInsertAction() {
+        insert = new Insert(menu, true);
+        insert.getInsert().addActionListener(this);
+        insert.setVisible(true);
+    }
+
+    private void handleInsertPerson() {
+        Person p = new Person(insert.getNam().getText(), insert.getNif().getText());
+        if (insert.getDateOfBirth().getModel().getValue() != null) {
+            p.setDateOfBirth(((GregorianCalendar) insert.getDateOfBirth().getModel().getValue()).getTime());
+        }
+        if (insert.getPhoto().getIcon() != null) {
+            p.setPhoto((ImageIcon) insert.getPhoto().getIcon());
+        }
+        insert(p);
+        insert.getReset().doClick();
+    }
+
+    private void handleReadAction() {
+        read = new Read(menu, true);
+        read.getRead().addActionListener(this);
+        read.setVisible(true);
+    }
+
+    private void handleReadPerson() {
+        Person p = new Person(read.getNif().getText());
+        Person pNew = read(p);
+        if (pNew != null) {
+            read.getNam().setText(pNew.getName());
+            if (pNew.getDateOfBirth() != null) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(pNew.getDateOfBirth());
+                DateModel<Calendar> dateModel = (DateModel<Calendar>) read.getDateOfBirth().getModel();
+                dateModel.setValue(calendar);
             }
-            //Events for the delete option    
-        } else if (e.getSource()
-                == menu.getDelete()) {
-            delete = new Delete(menu, true);
-            delete.getDelete().addActionListener(this);
-            delete.setVisible(true);
-        } else if (delete
-                != null && e.getSource()
-                == delete.getDelete()) {
+            //To avoid charging former images
+            if (pNew.getPhoto() != null) {
+                pNew.getPhoto().getImage().flush();
+                read.getPhoto().setIcon(pNew.getPhoto());
+            }
+        } else {
+            JOptionPane.showMessageDialog(read, p.getNif() + " doesn't exist.", read.getTitle(), JOptionPane.WARNING_MESSAGE);
+            read.getReset().doClick();
+        }
+    }
+
+    public void handleDeleteAction() {
+        delete = new Delete(menu, true);
+        delete.getDelete().addActionListener(this);
+        delete.setVisible(true);
+    }
+
+    public void handleDeletePerson() {
+        if (delete != null) {
             Person p = new Person(delete.getNif().getText());
             delete(p);
             delete.getReset().doClick();
-            //Events for the update option
-        } else if (e.getSource()
-                == menu.getUpdate()) {
-            update = new Update(menu, true);
-            update.getUpdate().addActionListener(this);
-            update.getRead().addActionListener(this);
-            update.setVisible(true);
-        } else if (update
-                != null && e.getSource()
-                == update.getRead()) {
+        }
+    }
+
+    public void handleUpdateAction() {
+        update = new Update(menu, true);
+        update.getUpdate().addActionListener(this);
+        update.getRead().addActionListener(this);
+        update.setVisible(true);
+    }
+
+    public void handleReadForUpdate() {
+        if (update != null) {
             Person p = new Person(update.getNif().getText());
             Person pNew = read(p);
             if (pNew != null) {
@@ -265,7 +302,6 @@ public class ControllerImplementation implements IController, ActionListener {
                     DateModel<Calendar> dateModel = (DateModel<Calendar>) update.getDateOfBirth().getModel();
                     dateModel.setValue(calendar);
                 }
-                //To avoid charging former images
                 if (pNew.getPhoto() != null) {
                     pNew.getPhoto().getImage().flush();
                     update.getPhoto().setIcon(pNew.getPhoto());
@@ -275,9 +311,11 @@ public class ControllerImplementation implements IController, ActionListener {
                 JOptionPane.showMessageDialog(update, p.getNif() + " doesn't exist.", update.getTitle(), JOptionPane.WARNING_MESSAGE);
                 update.getReset().doClick();
             }
-        } else if (update
-                != null && e.getSource()
-                == update.getUpdate()) {
+        }
+    }
+
+    public void handleUpdatePerson() {
+        if (update != null) {
             Person p = new Person(update.getNam().getText(), update.getNif().getText());
             if ((update.getDateOfBirth().getModel().getValue()) != null) {
                 p.setDateOfBirth(((GregorianCalendar) update.getDateOfBirth().getModel().getValue()).getTime());
@@ -287,42 +325,42 @@ public class ControllerImplementation implements IController, ActionListener {
             }
             update(p);
             update.getReset().doClick();
-            //Events for the readAll option
-        } else if (e.getSource()
-                == menu.getReadAll()) {
-            ArrayList<Person> s = readAll();
-            if (s.isEmpty()) {
-                JOptionPane.showMessageDialog(menu, "There are not people registered yet.", "Read All - People v1.1.0", JOptionPane.WARNING_MESSAGE);
-            } else {
-                readAll = new ReadAll(menu, true);
-                DefaultTableModel model = (DefaultTableModel) readAll.getTable().getModel();
-                for (int i = 0; i < s.size(); i++) {
-                    model.addRow(new Object[i]);
-                    model.setValueAt(s.get(i).getNif(), i, 0);
-                    model.setValueAt(s.get(i).getName(), i, 1);
-                    if (s.get(i).getDateOfBirth() != null) {
-                        model.setValueAt(s.get(i).getDateOfBirth().toString(), i, 2);
-                    } else {
-                        model.setValueAt("", i, 2);
-                    }
-                    if (s.get(i).getPhoto() != null) {
-                        model.setValueAt("yes", i, 3);
-                    } else {
-                        model.setValueAt("no", i, 3);
-                    }
-                }
-                readAll.setVisible(true);
-            }
-        } else if (e.getSource()
-                == menu.getDeleteAll()) {
-            int answer = JOptionPane.showConfirmDialog(menu, "Are you sure to delete all people registered?", "Delete All - People v1.1.0", 0, 0);
-            if (answer == 0) {
-                //Delete All, but firts ask again
-                deleteAll();
-            }
         }
     }
 
+    public void handleReadAll() {
+        ArrayList<Person> s = readAll();
+        if (s.isEmpty()) {
+            JOptionPane.showMessageDialog(menu, "There are not people registered yet.", "Read All - People v1.1.0", JOptionPane.WARNING_MESSAGE);
+        } else {
+            readAll = new ReadAll(menu, true);
+            DefaultTableModel model = (DefaultTableModel) readAll.getTable().getModel();
+            for (int i = 0; i < s.size(); i++) {
+                model.addRow(new Object[i]);
+                model.setValueAt(s.get(i).getNif(), i, 0);
+                model.setValueAt(s.get(i).getName(), i, 1);
+                if (s.get(i).getDateOfBirth() != null) {
+                    model.setValueAt(s.get(i).getDateOfBirth().toString(), i, 2);
+                } else {
+                    model.setValueAt("", i, 2);
+                }
+                if (s.get(i).getPhoto() != null) {
+                    model.setValueAt("yes", i, 3);
+                } else {
+                    model.setValueAt("no", i, 3);
+                }
+            }
+            readAll.setVisible(true);
+        }
+    }
+
+    public void handleDeleteAll() {
+        int answer = JOptionPane.showConfirmDialog(menu, "Are you sure to delete all people registered?", "Delete All - People v1.1.0", 0, 0);
+        if (answer == 0) {
+            deleteAll();
+        }
+    }
+    
     /**
      * This function inserts the Person object with the requested NIF, if it
      * doesn't exist. If there is any access problem with the storage device,
